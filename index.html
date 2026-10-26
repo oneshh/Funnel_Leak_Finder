@@ -1,0 +1,121 @@
+<title>Funnel Leak Finder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one screen. Four sliders on the left, a live funnel and a diagnosis on the right. */
+:root{
+  --bg:#eef1f4; --surface:#ffffff; --ink:#0f1b2d; --muted:#5b6778; --line:#d5dbe3;
+  --signal:#d9861c; --signal-soft:#fbe9cf; --steel:#2f5d8a; --good:#2e7d5b; --bad:#b4442f;
+  --display:"Bricolage Grotesque","Arial Narrow",Arial,sans-serif; --body:"IBM Plex Sans","Segoe UI",Arial,sans-serif; --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#0b111b;--surface:#121a27;--ink:#e8edf4;--muted:#93a0b2;--line:#243043;--signal:#f0a645;--signal-soft:#3a2a12;--steel:#7fb0e0;--good:#5cc495;--bad:#ef7b64;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0b111b;--surface:#121a27;--ink:#e8edf4;--muted:#93a0b2;--line:#243043;--signal:#f0a645;--signal-soft:#3a2a12;--steel:#7fb0e0;--good:#5cc495;--bad:#ef7b64;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5}
+.wrap{max-width:1080px;margin:0 auto;padding-block:28px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--steel)}
+h1{font-family:var(--display);font-weight:800;font-size:clamp(30px,4vw,44px);letter-spacing:-1px;line-height:1.02;margin:8px 0 6px}
+.sub{color:var(--muted);margin:0 0 24px;max-width:60ch}
+.grid{display:grid;grid-template-columns:320px 1fr;gap:24px;align-items:start}
+.panel{background:var(--surface);border:1.5px solid var(--ink);border-radius:10px;padding:22px;min-width:0}
+.field{display:grid;gap:6px;margin-bottom:18px}
+.field:last-of-type{margin-bottom:6px}
+.frow{display:flex;justify-content:space-between;align-items:baseline}
+.frow label{font-weight:600}
+.frow output{font-family:var(--mono);font-size:20px;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--signal)}
+input[type=range]:focus-visible{outline:3px solid var(--signal);outline-offset:3px}
+.hint{font-size:12px;color:var(--muted);font-family:var(--mono)}
+.reset{background:none;border:0;color:var(--steel);font:inherit;font-size:13px;cursor:pointer;padding:0;margin-top:10px;text-decoration:underline}
+.verdict{border-left:4px solid var(--bad);padding:4px 0 4px 14px;margin-bottom:20px}
+.verdict .k{font-family:var(--mono);font-size:12px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+.verdict h2{font-family:var(--display);font-size:26px;margin:2px 0 0;letter-spacing:-.5px;text-wrap:balance}
+svg text{font-family:var(--body)}
+.checks{display:grid;gap:10px;margin-top:18px}
+.check{display:grid;grid-template-columns:88px 1fr;gap:12px;align-items:start;border-top:1px solid var(--line);padding-top:10px}
+.pill{font-family:var(--mono);font-size:11.5px;font-weight:500;text-align:center;padding:3px 0;border-radius:99px}
+.p-bad{background:color-mix(in srgb,var(--bad) 16%,transparent);color:var(--bad)}
+.p-warn{background:var(--signal-soft);color:var(--signal)}
+.p-good{background:color-mix(in srgb,var(--good) 16%,transparent);color:var(--good)}
+.check b{display:block}
+.check div span{color:var(--muted);font-size:14px}
+.whatif{margin-top:18px;background:var(--signal-soft);border-radius:8px;padding:14px 16px;font-size:14.5px}
+.whatif b{font-family:var(--mono)}
+.foot{margin-top:20px;font-size:12px;color:var(--muted);font-family:var(--mono)}
+@media (max-width:820px){.grid{grid-template-columns:1fr}}
+</style>
+
+<div class="wrap">
+  <div class="eyebrow">Lyzr Task C · Q1 extra · by Vansh Agicha</div>
+  <h1>Funnel Leak Finder</h1>
+  <p class="sub">Four weekly numbers in, one answer out: where the funnel is leaking and what to look at first. Preloaded with the midpoints from the brief.</p>
+
+  <div class="grid">
+    <div class="panel" aria-label="Weekly numbers">
+      <div class="field"><div class="frow"><label for="leads">Leads</label><output id="o-leads"></output></div><input type="range" id="leads" min="10" max="300" value="75"><span class="hint">brief: 60 to 90 a week</span></div>
+      <div class="field"><div class="frow"><label for="mqls">MQLs</label><output id="o-mqls"></output></div><input type="range" id="mqls" min="1" max="300" value="47"><span class="hint">brief: 40 to 55 a week</span></div>
+      <div class="field"><div class="frow"><label for="sqls">SQLs</label><output id="o-sqls"></output></div><input type="range" id="sqls" min="0" max="100" value="4"><span class="hint">brief: 2 to 6 a week</span></div>
+      <div class="field"><div class="frow"><label for="meet">Meetings booked</label><output id="o-meet"></output></div><input type="range" id="meet" min="0" max="100" value="20"><span class="hint">brief: 15 to 25 a week</span></div>
+      <button class="reset" id="reset" type="button">Reset to the brief's numbers</button>
+    </div>
+
+    <div class="panel" aria-live="polite">
+      <div class="verdict" id="verdict"><div class="k">Biggest leak</div><h2 id="vText"></h2></div>
+      <svg id="funnel" viewBox="0 0 640 230" width="100%" role="img" aria-label="Funnel of leads, MQLs and SQLs"></svg>
+      <div class="checks" id="checks"></div>
+      <div class="whatif" id="whatif"></div>
+      <p class="foot">Thresholds are rules of thumb I'd start with, then tune to Lyzr's own history.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+const ids=['leads','mqls','sqls','meet'], start={leads:75,mqls:47,sqls:4,meet:20};
+const el=id=>document.getElementById(id);
+const pct=(a,b)=>b>0?Math.round(a/b*100):0;
+function draw(){
+  let v={}; ids.forEach(k=>{v[k]=Number(el(k).value); el('o-'+k).textContent=v[k];});
+  if(v.mqls>v.leads){v.mqls=v.leads; el('mqls').value=v.mqls; el('o-mqls').textContent=v.mqls;}
+  if(v.sqls>v.mqls){v.sqls=v.mqls; el('sqls').value=v.sqls; el('o-sqls').textContent=v.sqls;}
+  const lm=pct(v.mqls,v.leads), ms=pct(v.sqls,v.mqls);
+  // funnel
+  const css=getComputedStyle(document.documentElement), c=n=>css.getPropertyValue(n).trim();
+  const W=420, cx=330, rows=[['Leads',v.leads],['MQLs',v.mqls],['SQLs',v.sqls]];
+  const worst = ms<15 ? 2 : lm>50 ? 1 : -1;
+  let s='';
+  rows.forEach((r,i)=>{const w=Math.max(6,r[1]/v.leads*W), y=10+i*76;
+    s+=`<rect x="${cx-w/2}" y="${y}" width="${w}" height="44" rx="5" fill="${i===worst?c('--signal'):c('--line')}"/>`+
+       `<text x="0" y="${y+20}" font-weight="600" font-size="15" fill="${c('--ink')}">${r[0]}</text>`+
+       `<text x="0" y="${y+38}" font-size="13" fill="${c('--muted')}">${r[1]} a week</text>`;
+    if(i<2){const p=i===0?lm:ms, bad=(i===0&&lm>50)||(i===1&&ms<15);
+      s+=`<text x="${cx}" y="${y+64}" text-anchor="middle" font-size="13" font-weight="${bad?600:400}" fill="${bad?c('--bad'):c('--muted')}">${p}% carry on</text>`;}
+  });
+  el('funnel').innerHTML=s;
+  // checks
+  const checks=[];
+  checks.push(lm>50?['bad','Broken','The MQL bar is too low',`${lm}% of leads become MQLs. When most people pass, the gate isn't filtering.`]
+            :lm<20?['warn','Watch','The MQL bar may be too strict',`Only ${lm}% of leads become MQLs. Check that good leads aren't being thrown out.`]
+            :['good','Healthy','Lead to MQL looks reasonable',`${lm}% of leads become MQLs.`]);
+  checks.push(ms<15?['bad','Broken','Sales rejects most MQLs',`Only ${ms}% of MQLs become SQLs. Marketing is passing on the wrong people.`]
+            :ms<30?['warn','Watch','MQL quality is middling',`${ms}% of MQLs become SQLs. Tighten fit before adding volume.`]
+            :['good','Healthy','MQL quality looks good',`${ms}% of MQLs become SQLs.`]);
+  checks.push(v.meet>v.sqls?['warn','Check','More meetings than SQLs',`${v.meet} meetings vs ${v.sqls} SQLs. Before moving budget, check in the CRM whether meetings are bookings or held calls, and whether SQL is marked before or after the meeting.`]
+            :['good','Healthy','Meetings line up with SQLs',`${v.meet} meetings for ${v.sqls} SQLs.`]);
+  el('checks').innerHTML=checks.map(x=>`<div class="check"><span class="pill p-${x[0]}">${x[1]}</span><div><b>${x[2]}</b><span>${x[3]}</span></div></div>`).join('');
+  // verdict
+  const vb=el('verdict');
+  if(ms<15){el('vText').textContent='Between MQL and SQL. Fix who gets called qualified before buying more leads.';vb.style.borderColor=c('--bad');}
+  else if(lm>50){el('vText').textContent='The first gate. Too many leads are labelled MQL.';vb.style.borderColor=c('--signal');}
+  else if(v.meet>v.sqls){el('vText').textContent='No clear leak. Check how meetings are counted.';vb.style.borderColor=c('--signal');}
+  else {el('vText').textContent='No major leak. Now it is a volume question.';vb.style.borderColor=c('--good');}
+  // what if
+  const target=Math.max(20,ms), newS=Math.round(v.mqls*target/100);
+  el('whatif').innerHTML = ms<20
+    ? `If MQL to SQL rose from ${ms}% to 20% with the same leads, you'd get <b>${newS} SQLs a week</b> instead of ${v.sqls}, without spending a dollar more on ads.`
+    : `MQL to SQL is already ${ms}%. The next gain comes from more of the right accounts, not a better filter.`;
+}
+ids.forEach(k=>el(k).addEventListener('input',draw));
+el('reset').addEventListener('click',()=>{ids.forEach(k=>el(k).value=start[k]);draw();});
+draw();
+</script>
